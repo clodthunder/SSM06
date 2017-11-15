@@ -1,10 +1,14 @@
 apply plugin: 'com.android.application'
+
+Properties props = new Properties()
+props.load(new FileInputStream(file("signing.properties")))
+
 android {
-    compileSdkVersion 26
+    compileSdkVersion 27
     defaultConfig {
         applicationId "com.lskj.ct.ssm06"
         minSdkVersion 19
-        targetSdkVersion 26
+        targetSdkVersion 27
         versionCode 1
         versionName "1.0"
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
@@ -14,8 +18,22 @@ android {
             }
         }
     }
+    signingConfigs {
+        release{
+            keyAlias props['KEY_ALIAS']
+            keyPassword props['KEY_PASSWORD']
+            storeFile file(props['KEYSTORE_FILE'])
+            storePassword props['KEYSTORE_PASSWORD']
+        }
+    }
     buildTypes {
         release {
+            signingConfig signingConfigs.release
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+        debug {
+            signingConfig signingConfigs.debug
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
@@ -25,20 +43,21 @@ android {
             path "CMakeLists.txt"
         }
     }
+    buildToolsVersion '26.0.2'
 }
 
 dependencies {
     implementation fileTree(include: ['*.jar'], dir: 'libs')
-    implementation 'com.android.support:appcompat-v7:26.1.0'
+    implementation 'com.android.support:support-v4:27.0.0'
+    implementation 'com.android.support:appcompat-v7:27.0.0'
+    implementation 'com.android.support:design:27.0.0'
+    implementation 'com.android.support:recyclerview-v7:27.0.0'
     implementation 'com.android.support.constraint:constraint-layout:1.0.2'
     testImplementation 'junit:junit:4.12'
     //      此处解决一个共同引包版本不同的问题：明引最新的包，比它版本低的不会重新下载
     implementation 'com.google.code.findbugs:jsr305:2.0.1'
     androidTestImplementation 'com.android.support.test:runner:1.0.1'
     androidTestImplementation 'com.android.support.test.espresso:espresso-core:3.0.1'
-    implementation 'com.android.support:support-v4:26.1.0'
-    implementation 'com.android.support:design:26.1.0'
-    implementation 'com.android.support:recyclerview-v7:26.1.0'
     implementation 'com.google.code.gson:gson:2.8.2'
     implementation 'com.google.guava:guava:23.4-android'
     //    此包默认引用okhttp3
@@ -47,9 +66,11 @@ dependencies {
     implementation 'com.squareup.okhttp3:logging-interceptor:3.8.0'
     implementation 'com.jakewharton.timber:timber:4.6.0'
     implementation 'io.reactivex.rxjava2:rxandroid:2.0.1'
-    implementation "io.reactivex.rxjava2:rxjava:2.1.5"
+    implementation 'io.reactivex.rxjava2:rxjava:2.1.5'
     implementation 'com.tbruyelle.rxpermissions2:rxpermissions:0.9.4@aar'
     implementation 'com.jakewharton:butterknife:8.5.1'
     annotationProcessor 'com.jakewharton:butterknife-compiler:8.5.1'
-
+    implementation 'com.afollestad.material-dialogs:core:0.9.5.0'
+    implementation 'com.afollestad.material-dialogs:commons:0.9.5.0'
+    implementation 'com.squareup.sqlbrite2:sqlbrite:2.0.0'
 }
