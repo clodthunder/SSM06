@@ -3,29 +3,52 @@ apply plugin: 'com.android.application'
 Properties props = new Properties()
 props.load(new FileInputStream(file("signing.properties")))
 
+def releaseTime() {
+    return new Date().format("yyyy-MM-dd", TimeZone.getTimeZone("UTC"))
+}
+
 android {
-    compileSdkVersion 27
+    compileSdkVersion versions.compileSdkVersion
+    buildToolsVersion '26.0.2'
     defaultConfig {
         applicationId "com.lskj.ct.ssm06"
-        minSdkVersion 19
+        // Enabling multidex support
+        multiDexEnabled true
+        minSdkVersion 21
         targetSdkVersion 27
         versionCode 1
         versionName "1.0"
-        testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
         externalNativeBuild {
             cmake {
                 cppFlags "-std=c++14 -frtti -fexceptions"
             }
         }
+
+//        multiDexKeepProguard file('multidex-config.pro')
+        testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
+
     }
     signingConfigs {
-        release{
+        release {
+            keyAlias props['KEY_ALIAS']
+            keyPassword props['KEY_PASSWORD']
+            storeFile file(props['KEYSTORE_FILE'])
+            storePassword props['KEYSTORE_PASSWORD']
+        }
+        debug {
             keyAlias props['KEY_ALIAS']
             keyPassword props['KEY_PASSWORD']
             storeFile file(props['KEYSTORE_FILE'])
             storePassword props['KEYSTORE_PASSWORD']
         }
     }
+
+    // 为了解决部分第三方库重复打包了META-INF的问题
+    packagingOptions {
+        exclude 'META-INF/LICENSE.txt'
+        exclude 'META-INF/NOTICE.txt'
+    }
+
     buildTypes {
         release {
             signingConfig signingConfigs.release
@@ -38,12 +61,55 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
+    flavorDimensions 'ssm06'
+    productFlavors {
+        Umeng {
+            dimension 'ssm06'
+            manifestPlaceholders = [UMENG_CHANNEL_VALUE: "Umeng"]
+        }
+        YingYongBao {
+            dimension 'ssm06'
+            manifestPlaceholders = [UMENG_CHANNEL_VALUE: "YingYongBao"]
+        }
+    }
     externalNativeBuild {
         cmake {
             path "CMakeLists.txt"
         }
     }
-    buildToolsVersion '26.0.2'
+
+//https://developer.android.com/studio/build/gradle-plugin-3-0-0-migration.html?utm_source=android-studio#variant_aware
+    android.applicationVariants.all {
+        variant ->
+            variant.outputs.all {
+                output ->
+                    outputFileName = releaseTime() + "-${variant.name}-${variant.versionName}.apk"
+            }
+//     INSTALL_FAILED_DEXOPT   Issue 22586
+//            dex.doFirst {
+//                dex ->
+//                    if (dex.additionalParameters == null) {
+//                        dex.additionalParameters = []
+//                    }
+//                    dex.additionalParameters += '--set-max-idx-number=48000'
+//
+//            }
+    }
+}
+
+//gradle 依赖修改默认策略：引用最高版本
+// 添加后：如果依赖出现版本冲突 会直接打印出
+
+configurations.all {
+    resolutionStrategy {
+        failOnVersionConflict()
+        force 'com.android.support:support-annotations:27.0.0'
+        force 'com.google.code.findbugs:jsr305:2.0.1'
+        force 'io.reactivex.rxjava2:rxjava:2.1.5'
+        force 'com.android.support:support-compat:27.0.0'
+        force 'com.android.support:appcompat-v7:27.0.0'
+        force 'com.google.auto:auto-common:0.6'
+    }
 }
 
 dependencies {
@@ -54,15 +120,17 @@ dependencies {
     implementation 'com.android.support:recyclerview-v7:27.0.0'
     implementation 'com.android.support.constraint:constraint-layout:1.0.2'
     testImplementation 'junit:junit:4.12'
-    //      此处解决一个共同引包版本不同的问题：明引最新的包，比它版本低的不会重新下载
-    implementation 'com.google.code.findbugs:jsr305:2.0.1'
+    //    此处解决一个共同引包版本不同的问题：明引最新的包，比它版本低的不会重新下载
     androidTestImplementation 'com.android.support.test:runner:1.0.1'
+    //排除 com.google.code.findbugs:jsr305:2.0.1 依赖
     androidTestImplementation 'com.android.support.test.espresso:espresso-core:3.0.1'
+
     implementation 'com.google.code.gson:gson:2.8.2'
     implementation 'com.google.guava:guava:23.4-android'
     //    此包默认引用okhttp3
     implementation 'com.squareup.retrofit2:retrofit:2.3.0'
-    implementation 'com.squareup.retrofit2:converter-gson:2.3.0'
+//    取消该依赖的依赖传递性
+    implementation 'com.squareup.retrofit2:converter-gson:2.3.0@jar'
     implementation 'com.squareup.okhttp3:logging-interceptor:3.8.0'
     implementation 'com.jakewharton.timber:timber:4.6.0'
     implementation 'io.reactivex.rxjava2:rxandroid:2.0.1'
@@ -73,4 +141,17 @@ dependencies {
     implementation 'com.afollestad.material-dialogs:core:0.9.5.0'
     implementation 'com.afollestad.material-dialogs:commons:0.9.5.0'
     implementation 'com.squareup.sqlbrite2:sqlbrite:2.0.0'
+    implementation 'com.android.support:multidex:1.0.2'
+
+//    implementation 'me.relex:circleindicator:1.2.2@aar'
+//    implementation 'com.roughike:bottom-bar:2.3.1'
+//    implementation 'com.tbruyelle.rxpermissions2:rxpermissions:0.9.4@aar'
+//    implementation 'com.readystatesoftware.systembartint:systembartint:1.0.3'
+//    debugCompile 'com.squareup.leakcanary:leakcanary-android:1.5.4'
+//    releaseCompile 'com.squareup.leakcanary:leakcanary-android-no-op:1.5.4'
+}
+
+//自定义的Task
+task printVariants() {
+
 }
